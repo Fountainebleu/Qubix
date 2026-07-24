@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Qubix.Core.Entities;
+using Qubix.Infrastructure.Identity;
 
 namespace Qubix.Infrastructure.Persistence.Configurations;
 
@@ -61,6 +62,11 @@ internal sealed class QuizConfiguration : IEntityTypeConfiguration<Quiz>
 
         builder.Property(quiz => quiz.UpdatedAtUtc)
             .IsRequired();
+
+        builder.HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(quiz => quiz.OwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(quiz => new { quiz.OwnerId, quiz.Status })
             .HasDatabaseName("IX_Quizzes_OwnerId_Status");

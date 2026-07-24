@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Qubix.Core.Entities;
+using Qubix.Infrastructure.Identity;
 
 namespace Qubix.Infrastructure.Persistence.Configurations;
 
@@ -59,6 +60,11 @@ internal sealed class QuizSessionConfiguration : IEntityTypeConfiguration<QuizSe
         builder.HasOne<Quiz>()
             .WithMany()
             .HasForeignKey(session => session.QuizId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(session => session.OrganizerId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<SessionQuestion>()

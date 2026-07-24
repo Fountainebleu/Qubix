@@ -1,22 +1,26 @@
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Qubix.Infrastructure.Persistence;
 
 namespace Qubix.IntegrationTests;
 
-public sealed class QubixWebApplicationFactory : WebApplicationFactory<Program>
+public sealed class AuthWebApplicationFactory : WebApplicationFactory<Program>
 {
     private const string ConnectionStringVariable =
         "ConnectionStrings__DefaultConnection";
     private const string TestConnectionString =
-        "Host=localhost;Port=5432;Database=qubix_api_tests;" +
-        "Username=qubix;Password=api-tests-only";
+        "Host=localhost;Port=5432;Database=qubix_auth_tests;" +
+        "Username=qubix;Password=auth-tests-only";
 
     private readonly string? _originalConnectionString =
         Environment.GetEnvironmentVariable(ConnectionStringVariable);
+    private readonly string _databaseName = $"qubix-auth-{Guid.NewGuid()}";
 
-    public QubixWebApplicationFactory()
+    public AuthWebApplicationFactory()
     {
         Environment.SetEnvironmentVariable(
             ConnectionStringVariable,
@@ -26,13 +30,15 @@ public sealed class QubixWebApplicationFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
-        builder.UseSetting("Identity:SeedRolesOnStartup", "false");
+        builder.UseSetting("Identity:SeedRolesOnStartup", "true");
         builder.ConfigureServices(services =>
         {
-            services
-                .AddControllers()
-                .PartManager.ApplicationParts.Add(
-                    new AssemblyPart(typeof(TestErrorsController).Assembly));
+            services.RemoveAll<AppDbContext>();
+            services.RemoveAll<DbContextOptions<AppDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
+
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseInMemoryDatabase(_databaseName));
         });
     }
 

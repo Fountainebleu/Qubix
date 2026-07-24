@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Qubix.Core.Entities;
+using Qubix.Infrastructure.Identity;
 using Qubix.Infrastructure.Persistence;
 
 namespace Qubix.IntegrationTests;
@@ -21,7 +22,8 @@ public sealed class AppDbContextModelTests
             typeof(SessionAnswerOption),
             typeof(Participant),
             typeof(AnswerSubmission),
-            typeof(AnswerSubmissionOption)
+            typeof(AnswerSubmissionOption),
+            typeof(ApplicationUser)
         ];
 
         var mappedEntityTypes = context.Model
@@ -76,6 +78,34 @@ public sealed class AppDbContextModelTests
 
         Assert.Equal(DeleteBehavior.Cascade, questionForeignKey.DeleteBehavior);
         Assert.Equal(DeleteBehavior.Restrict, sessionQuestionSourceForeignKey.DeleteBehavior);
+    }
+
+    [Fact]
+    public void UserReferences_UseRestrictDeleteBehavior()
+    {
+        using var context = CreateContext();
+
+        Type[] dependentTypes =
+        [
+            typeof(Quiz),
+            typeof(QuizSession),
+            typeof(Participant)
+        ];
+
+        Assert.All(
+            dependentTypes,
+            dependentType =>
+            {
+                var userForeignKey = context.Model
+                    .FindEntityType(dependentType)!
+                    .GetForeignKeys()
+                    .Single(
+                        foreignKey =>
+                            foreignKey.PrincipalEntityType.ClrType ==
+                            typeof(ApplicationUser));
+
+                Assert.Equal(DeleteBehavior.Restrict, userForeignKey.DeleteBehavior);
+            });
     }
 
     private static AppDbContext CreateContext()

@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Identity;
 using Qubix.Api.ErrorHandling;
 using Qubix.Infrastructure;
+using Qubix.Infrastructure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,10 +17,25 @@ builder.Logging.AddSimpleConsole(options =>
 builder.Services.AddControllers();
 builder.Services.AddApiErrorHandling();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.Name = "qubix.auth";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+});
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+if (app.Configuration.GetValue("Identity:SeedRolesOnStartup", true))
+{
+    await app.Services.SeedIdentityRolesAsync();
+}
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
@@ -36,6 +53,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
