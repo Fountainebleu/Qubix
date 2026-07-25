@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Qubix.Api.RealTime;
 using Qubix.Infrastructure.Persistence;
 
 namespace Qubix.IntegrationTests;
@@ -20,6 +22,8 @@ public sealed class AuthWebApplicationFactory : WebApplicationFactory<Program>
     private readonly string? _originalConnectionString =
         Environment.GetEnvironmentVariable(ConnectionStringVariable);
     private readonly string _databaseName = $"qubix-auth-{Guid.NewGuid()}";
+
+    public RecordingQuizHubContext QuizEvents { get; } = new();
 
     public AuthWebApplicationFactory()
     {
@@ -40,6 +44,10 @@ public sealed class AuthWebApplicationFactory : WebApplicationFactory<Program>
 
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase(_databaseName));
+
+            services.RemoveAll<IHubContext<QuizHub, IQuizClient>>();
+            services.AddSingleton<IHubContext<QuizHub, IQuizClient>>(
+                QuizEvents);
 
             services
                 .AddControllers()

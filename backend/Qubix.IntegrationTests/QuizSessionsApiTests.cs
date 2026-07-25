@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Qubix.Api.RealTime;
 using Qubix.Core.Authorization;
 using Qubix.Core.Entities;
 using Qubix.Core.Enums;
@@ -57,6 +58,7 @@ public sealed class QuizSessionsApiTests(
     [Fact]
     public async Task Room_FullLifecycleReturnsSafeSharedState()
     {
+        factory.QuizEvents.Clear();
         using var organizerClient = CreateClient();
         using var participantClient = CreateClient();
         using var outsiderClient = CreateClient();
@@ -167,6 +169,40 @@ public sealed class QuizSessionsApiTests(
             closed.GetProperty("questions")[0].GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.OK, finishResponse.StatusCode);
         Assert.Equal("Finished", finished.GetProperty("status").GetString());
+
+        var events = factory.QuizEvents.Events.ToArray();
+        Assert.Equal(
+            new[]
+            {
+                "ParticipantJoined",
+                "SessionStarted",
+                "QuestionOpened",
+                "QuestionClosed",
+                "LeaderboardUpdated",
+                "SessionFinished"
+            },
+            events.Select(recorded => recorded.EventName));
+        Assert.All(
+            events,
+            recorded =>
+            {
+                Assert.Equal(
+                    QuizHub.GetRoomGroup(sessionId),
+                    recorded.GroupName);
+                Assert.Equal(sessionId, recorded.State.Id);
+            });
+    }
+
+    [Fact]
+    public async Task QuizHub_NegotiateRequiresAuthentication()
+    {
+        using var client = CreateClient();
+
+        var response = await client.PostAsync(
+            "/hubs/quiz/negotiate?negotiateVersion=1",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]

@@ -2,9 +2,11 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Qubix.Api.Authorization;
 using Qubix.Api.Contracts.Sessions;
+using Qubix.Api.RealTime;
 using Qubix.Core.Authorization;
 using Qubix.Core.Entities;
 using Qubix.Core.Enums;
@@ -19,7 +21,8 @@ namespace Qubix.Api.Controllers;
 public sealed class QuizSessionsController(
     AppDbContext dbContext,
     UserManager<ApplicationUser> userManager,
-    TimeProvider timeProvider) : ControllerBase
+    TimeProvider timeProvider,
+    IHubContext<QuizHub, IQuizClient> quizHubContext) : ControllerBase
 {
     private const string RoomCodeAlphabet =
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -120,7 +123,12 @@ public sealed class QuizSessionsController(
         session.AddParticipant(participant);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return Ok(CreateStateResponse(session));
+        var state = CreateStateResponse(session);
+        await quizHubContext.Clients
+            .Group(QuizHub.GetRoomGroup(session.Id))
+            .ParticipantJoined(state);
+
+        return Ok(state);
     }
 
     [Authorize]
@@ -151,7 +159,12 @@ public sealed class QuizSessionsController(
         session.Start(timeProvider.GetUtcNow());
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return Ok(CreateStateResponse(session));
+        var state = CreateStateResponse(session);
+        await quizHubContext.Clients
+            .Group(QuizHub.GetRoomGroup(session.Id))
+            .SessionStarted(state);
+
+        return Ok(state);
     }
 
     [Authorize(Roles = ApplicationRoles.Organizer)]
@@ -170,7 +183,12 @@ public sealed class QuizSessionsController(
         session.OpenQuestion(questionId, timeProvider.GetUtcNow());
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return Ok(CreateStateResponse(session));
+        var state = CreateStateResponse(session);
+        await quizHubContext.Clients
+            .Group(QuizHub.GetRoomGroup(session.Id))
+            .QuestionOpened(state);
+
+        return Ok(state);
     }
 
     [Authorize(Roles = ApplicationRoles.Organizer)]
@@ -189,7 +207,13 @@ public sealed class QuizSessionsController(
         session.CloseCurrentQuestion(timeProvider.GetUtcNow());
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return Ok(CreateStateResponse(session));
+        var state = CreateStateResponse(session);
+        var clients = quizHubContext.Clients.Group(
+            QuizHub.GetRoomGroup(session.Id));
+        await clients.QuestionClosed(state);
+        await clients.LeaderboardUpdated(state);
+
+        return Ok(state);
     }
 
     [Authorize(Roles = ApplicationRoles.Organizer)]
@@ -207,7 +231,12 @@ public sealed class QuizSessionsController(
         session.Finish(timeProvider.GetUtcNow());
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return Ok(CreateStateResponse(session));
+        var state = CreateStateResponse(session);
+        await quizHubContext.Clients
+            .Group(QuizHub.GetRoomGroup(session.Id))
+            .SessionFinished(state);
+
+        return Ok(state);
     }
 
     private async Task<QuizSession> FindOwnedSessionAsync(

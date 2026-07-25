@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Qubix.Api.ErrorHandling;
+using Qubix.Api.RealTime;
 using Qubix.Infrastructure;
 using Qubix.Infrastructure.Identity;
 
@@ -15,6 +16,7 @@ builder.Logging.AddSimpleConsole(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddApiErrorHandling();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
@@ -57,6 +59,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<QuizHub>("/hubs/quiz");
 
 app.Run();
 
