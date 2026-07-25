@@ -174,6 +174,16 @@ public sealed class Quiz : Entity
         UpdatedAtUtc = timestamp;
     }
 
+    public void MarkContentUpdated(DateTimeOffset updatedAtUtc)
+    {
+        EnsureDraft();
+
+        var timestamp = Guard.Utc(updatedAtUtc, nameof(updatedAtUtc));
+        EnsureNotBeforeCreation(timestamp, nameof(updatedAtUtc));
+
+        UpdatedAtUtc = timestamp;
+    }
+
     private void EnsureDraft()
     {
         if (Status != QuizStatus.Draft)

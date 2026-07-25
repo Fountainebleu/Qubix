@@ -88,6 +88,42 @@ public sealed class QuizSessionTests
             () => session.OpenQuestion(second.Id, DomainTestFactory.Now.AddSeconds(3)));
     }
 
+    [Fact]
+    public void Start_MultipleChoiceWithOneCorrectAnswer_Succeeds()
+    {
+        var session = CreateSession();
+        var question = new SessionQuestion(
+            Guid.NewGuid(),
+            session.Id,
+            Guid.NewGuid(),
+            QuestionType.MultipleChoice,
+            position: 0,
+            timeLimitSeconds: 30,
+            points: 1_000,
+            text: "Question");
+        question.AddAnswerOption(
+            new SessionAnswerOption(
+                Guid.NewGuid(),
+                question.Id,
+                Guid.NewGuid(),
+                "Correct",
+                true,
+                0));
+        question.AddAnswerOption(
+            new SessionAnswerOption(
+                Guid.NewGuid(),
+                question.Id,
+                Guid.NewGuid(),
+                "Incorrect",
+                false,
+                1));
+        session.AddQuestion(question);
+
+        session.Start(DomainTestFactory.Now.AddSeconds(1));
+
+        Assert.Equal(QuizSessionStatus.Running, session.Status);
+    }
+
     private static QuizSession CreateSession()
     {
         return new QuizSession(

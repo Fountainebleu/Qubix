@@ -159,10 +159,10 @@ public sealed class SessionQuestion : Entity
                 "A single-choice session question must contain exactly one correct answer.");
         }
 
-        if (Type == QuestionType.MultipleChoice && correctAnswersCount < 2)
+        if (Type == QuestionType.MultipleChoice && correctAnswersCount < 1)
         {
             throw new DomainException(
-                "A multiple-choice session question must contain at least two correct answers.");
+                "A multiple-choice session question must contain at least one correct answer.");
         }
     }
 

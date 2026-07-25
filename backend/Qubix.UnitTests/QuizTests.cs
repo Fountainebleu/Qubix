@@ -56,6 +56,29 @@ public sealed class QuizTests
     }
 
     [Fact]
+    public void Publish_MultipleChoiceQuestionWithOneCorrectAnswer_Succeeds()
+    {
+        var quiz = CreateQuiz();
+        var question = new Question(
+            Guid.NewGuid(),
+            quiz.Id,
+            QuestionType.MultipleChoice,
+            position: 0,
+            timeLimitSeconds: 30,
+            points: 1_000,
+            text: "Question");
+        question.AddAnswerOption(
+            new AnswerOption(Guid.NewGuid(), question.Id, "Correct", true, 0));
+        question.AddAnswerOption(
+            new AnswerOption(Guid.NewGuid(), question.Id, "Incorrect", false, 1));
+        quiz.AddQuestion(question, DomainTestFactory.Now.AddSeconds(1));
+
+        quiz.Publish(DomainTestFactory.Now.AddMinutes(1));
+
+        Assert.Equal(QuizStatus.Published, quiz.Status);
+    }
+
+    [Fact]
     public void Publish_ValidQuiz_ChangesStatusAndPreventsFurtherModification()
     {
         var quiz = CreateQuiz();

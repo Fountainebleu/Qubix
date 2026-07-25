@@ -135,10 +135,10 @@ public sealed class Question : Entity
                 "A single-choice question must contain exactly one correct answer.");
         }
 
-        if (Type == QuestionType.MultipleChoice && correctAnswersCount < 2)
+        if (Type == QuestionType.MultipleChoice && correctAnswersCount < 1)
         {
             throw new DomainException(
-                "A multiple-choice question must contain at least two correct answers.");
+                "A multiple-choice question must contain at least one correct answer.");
         }
     }
 
