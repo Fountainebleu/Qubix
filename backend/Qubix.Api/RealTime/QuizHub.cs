@@ -9,9 +9,7 @@ namespace Qubix.Api.RealTime;
 [Authorize]
 public sealed class QuizHub(AppDbContext dbContext) : Hub<IQuizClient>
 {
-    public async Task JoinRoom(
-        Guid sessionId,
-        CancellationToken cancellationToken)
+    public async Task JoinRoom(Guid sessionId)
     {
         var userIdValue = Context.User?.FindFirstValue(
             ClaimTypes.NameIdentifier);
@@ -27,7 +25,7 @@ public sealed class QuizHub(AppDbContext dbContext) : Hub<IQuizClient>
                 (session.OrganizerId == userId ||
                  session.Participants.Any(
                      participant => participant.UserId == userId)),
-            cancellationToken);
+            Context.ConnectionAborted);
 
         if (!canJoin)
         {
@@ -38,7 +36,7 @@ public sealed class QuizHub(AppDbContext dbContext) : Hub<IQuizClient>
         await Groups.AddToGroupAsync(
             Context.ConnectionId,
             GetRoomGroup(sessionId),
-            cancellationToken);
+            Context.ConnectionAborted);
     }
 
     public static string GetRoomGroup(Guid sessionId)

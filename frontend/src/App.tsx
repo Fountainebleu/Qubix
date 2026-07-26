@@ -11,6 +11,17 @@ import authGlow from './assets/auth-glow.svg'
 import stepCircle from './assets/step-circle.svg'
 import { getApiErrorMessage } from './api'
 import { useAuth, type RegisterData } from './AuthContext'
+import {
+  CreateQuizPage,
+  OrganizerSessionPage,
+  QuizEditorPage,
+  QuizListPage,
+} from './OrganizerPages'
+import {
+  HistoryPage,
+  JoinRoomPage,
+  ParticipantSessionPage,
+} from './ParticipantPages'
 import './App.css'
 
 function Logo({ inverted = false }: { inverted?: boolean }) {
@@ -286,52 +297,24 @@ function ProtectedRoute() {
   return user ? <Outlet /> : <Navigate to="/login" replace />
 }
 
+function OrganizerRoute() {
+  const { user } = useAuth()
+
+  return user?.roles.includes('Organizer') ? (
+    <Outlet />
+  ) : (
+    <Navigate to="/" replace />
+  )
+}
+
 function HomePage() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-  const [error, setError] = useState('')
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-
-  const handleLogout = async () => {
-    setError('')
-    setIsLoggingOut(true)
-
-    try {
-      await logout()
-      navigate('/login', { replace: true })
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError))
-      setIsLoggingOut(false)
-    }
-  }
-
-  const role = user?.roles.includes('Organizer') ? 'Организатор' : 'Участник'
+  const { user } = useAuth()
 
   return (
-    <main className="home-page">
-      <nav className="home-nav">
-        <Logo />
-        <button
-          className="secondary-button"
-          onClick={handleLogout}
-          disabled={isLoggingOut}
-        >
-          {isLoggingOut ? 'Выходим…' : 'Выйти'}
-        </button>
-      </nav>
-      <section className="welcome-card">
-        <span className="welcome-card__role">{role}</span>
-        <h1>Здравствуйте, {user?.displayName}!</h1>
-        <p>
-          Авторизация работает. Управление квизами появится на следующем этапе.
-        </p>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-      </section>
-    </main>
+    <Navigate
+      to={user?.roles.includes('Organizer') ? '/quizzes' : '/join'}
+      replace
+    />
   )
 }
 
@@ -342,6 +325,18 @@ function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<ProtectedRoute />}>
         <Route index element={<HomePage />} />
+        <Route path="/join" element={<JoinRoomPage />} />
+        <Route path="/play/:sessionId" element={<ParticipantSessionPage />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route element={<OrganizerRoute />}>
+          <Route path="/quizzes" element={<QuizListPage />} />
+          <Route path="/quizzes/new" element={<CreateQuizPage />} />
+          <Route path="/quizzes/:quizId" element={<QuizEditorPage />} />
+          <Route
+            path="/sessions/:sessionId"
+            element={<OrganizerSessionPage />}
+          />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
