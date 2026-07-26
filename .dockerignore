@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+**/bin
+**/obj
+**/node_modules
+frontend/dist
+TestResults
+coverage
+*.user
+*.suo
+*.log
