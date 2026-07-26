@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Qubix.Api.RealTime;
 using Qubix.Core.Authorization;
@@ -206,6 +207,148 @@ public sealed class QuizSessionsApiTests(
     }
 
     [Fact]
+    public async Task SubmitAnswer_GradesExactSelectionAndSortsLeaderboard()
+    {
+        factory.QuizEvents.Clear();
+        using var organizerClient = CreateClient();
+        using var winnerClient = CreateClient();
+        using var partialClient = CreateClient();
+        using var lateClient = CreateClient();
+        var organizerId = await RegisterAsync(
+            organizerClient,
+            ApplicationRoles.Organizer,
+            "Organizer");
+        await RegisterAsync(
+            winnerClient,
+            ApplicationRoles.Participant,
+            "Winner");
+        await RegisterAsync(
+            partialClient,
+            ApplicationRoles.Participant,
+            "Partial");
+        await RegisterAsync(
+            lateClient,
+            ApplicationRoles.Participant,
+            "Late");
+        var quizId = await SeedQuizAsync(
+            organizerId,
+            publish: true,
+            correctAnswersCount: 2);
+        var created = await CreateSessionAsync(organizerClient, quizId);
+        var sessionId = created.GetProperty("id").GetGuid();
+        var roomCode = created.GetProperty("roomCode").GetString();
+        var questionId = created
+            .GetProperty("questions")[0]
+            .GetProperty("id")
+            .GetGuid();
+
+        await winnerClient.PostAsync(
+            $"/api/sessions/join/{roomCode}",
+            content: null);
+        await partialClient.PostAsync(
+            $"/api/sessions/join/{roomCode}",
+            content: null);
+        await lateClient.PostAsync(
+            $"/api/sessions/join/{roomCode}",
+            content: null);
+        await organizerClient.PostAsync(
+            $"/api/sessions/{sessionId}/start",
+            content: null);
+        var openResponse = await organizerClient.PostAsync(
+            $"/api/sessions/{sessionId}/questions/{questionId}/open",
+            content: null);
+        var opened = await ReadJsonAsync(openResponse);
+        var options = opened
+            .GetProperty("openQuestion")
+            .GetProperty("answerOptions");
+        var firstCorrectOptionId = options[0].GetProperty("id").GetGuid();
+        var secondCorrectOptionId = options[1].GetProperty("id").GetGuid();
+
+        var winnerResponse = await winnerClient.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/questions/{questionId}/answers",
+            new
+            {
+                selectedOptionIds = new[]
+                {
+                    firstCorrectOptionId,
+                    secondCorrectOptionId
+                }
+            });
+        var partialResponse = await partialClient.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/questions/{questionId}/answers",
+            new
+            {
+                selectedOptionIds = new[] { firstCorrectOptionId }
+            });
+        var duplicateResponse = await winnerClient.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/questions/{questionId}/answers",
+            new
+            {
+                selectedOptionIds = new[]
+                {
+                    firstCorrectOptionId,
+                    secondCorrectOptionId
+                }
+            });
+
+        var closeResponse = await organizerClient.PostAsync(
+            $"/api/sessions/{sessionId}/current-question/close",
+            content: null);
+        var closed = await ReadJsonAsync(closeResponse);
+        var closedQuestionResponse = await lateClient.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/questions/{questionId}/answers",
+            new
+            {
+                selectedOptionIds = new[]
+                {
+                    firstCorrectOptionId,
+                    secondCorrectOptionId
+                }
+            });
+
+        Assert.Equal(HttpStatusCode.NoContent, winnerResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, partialResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Conflict,
+            closedQuestionResponse.StatusCode);
+
+        var leaderboard = closed.GetProperty("participants");
+        Assert.Equal("Winner", leaderboard[0].GetProperty("displayName").GetString());
+        Assert.Equal(100, leaderboard[0].GetProperty("score").GetInt32());
+        Assert.Equal("Partial", leaderboard[1].GetProperty("displayName").GetString());
+        Assert.Equal(0, leaderboard[1].GetProperty("score").GetInt32());
+        Assert.Equal("Late", leaderboard[2].GetProperty("displayName").GetString());
+        Assert.Equal(0, leaderboard[2].GetProperty("score").GetInt32());
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<AppDbContext>();
+        var submissions = await dbContext.AnswerSubmissions
+            .Where(submission => submission.SessionQuestionId == questionId)
+            .OrderByDescending(submission => submission.AwardedPoints)
+            .ToArrayAsync();
+
+        Assert.Equal(2, submissions.Length);
+        Assert.True(submissions[0].IsCorrect);
+        Assert.Equal(100, submissions[0].AwardedPoints);
+        Assert.False(submissions[1].IsCorrect);
+        Assert.Equal(0, submissions[1].AwardedPoints);
+
+        var leaderboardEvent = Assert.Single(
+            factory.QuizEvents.Events,
+            recorded => recorded.EventName == "LeaderboardUpdated");
+        Assert.Equal(
+            new[] { "Winner", "Partial", "Late" },
+            leaderboardEvent.State.Participants.Select(
+                participant => participant.DisplayName));
+        Assert.Equal(
+            new[] { 100, 0, 0 },
+            leaderboardEvent.State.Participants.Select(
+                participant => participant.Score));
+    }
+
+    [Fact]
     public async Task Join_DuplicateOrStartedRoomReturnsConflict()
     {
         using var organizerClient = CreateClient();
@@ -325,7 +468,8 @@ public sealed class QuizSessionsApiTests(
 
     private async Task<Guid> SeedQuizAsync(
         Guid ownerId,
-        bool publish)
+        bool publish,
+        int correctAnswersCount = 1)
     {
         var createdAt = DateTimeOffset.UtcNow.AddMinutes(-1);
         var quiz = new Quiz(
@@ -341,20 +485,26 @@ public sealed class QuizSessionsApiTests(
             timeLimitSeconds: 30,
             points: 100,
             text: "Select suitable answers");
-        question.AddAnswerOption(
-            new AnswerOption(
-                Guid.NewGuid(),
-                question.Id,
-                "Correct",
-                isCorrect: true,
-                position: 0));
+        for (var position = 0;
+             position < correctAnswersCount;
+             position++)
+        {
+            question.AddAnswerOption(
+                new AnswerOption(
+                    Guid.NewGuid(),
+                    question.Id,
+                    $"Correct {position + 1}",
+                    isCorrect: true,
+                    position));
+        }
+
         question.AddAnswerOption(
             new AnswerOption(
                 Guid.NewGuid(),
                 question.Id,
                 "Incorrect",
                 isCorrect: false,
-                position: 1));
+                position: correctAnswersCount));
         quiz.AddQuestion(question, createdAt.AddSeconds(1));
 
         if (publish)

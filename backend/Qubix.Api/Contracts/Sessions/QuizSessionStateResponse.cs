@@ -37,7 +37,8 @@ public sealed record QuizSessionStateResponse(
             session.StartedAtUtc,
             session.FinishedAtUtc,
             session.Participants
-                .OrderBy(participant => participant.JoinedAtUtc)
+                .OrderByDescending(participant => participant.Score)
+                .ThenBy(participant => participant.JoinedAtUtc)
                 .Select(SessionParticipantResponse.FromEntity)
                 .ToArray(),
             session.Questions

@@ -144,6 +144,75 @@ public sealed class QuizSessionsController(
         return Ok(CreateStateResponse(session));
     }
 
+    [Authorize]
+    [HttpPost("{sessionId:guid}/questions/{questionId:guid}/answers")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SubmitAnswer(
+        Guid sessionId,
+        Guid questionId,
+        SubmitAnswerRequest request,
+        CancellationToken cancellationToken)
+    {
+        var session = await FindSessionAsync(sessionId, cancellationToken);
+        EnsureSessionMember(session);
+
+        var userId = User.GetRequiredUserId();
+        var participant = session.Participants.SingleOrDefault(
+            existing => existing.UserId == userId)
+            ?? throw new AccessDeniedException(
+                "Only a joined participant can submit an answer.");
+        var question = session.Questions.SingleOrDefault(
+            existing => existing.Id == questionId)
+            ?? throw new NotFoundException(
+                "Session question was not found.");
+
+        var alreadySubmitted = await dbContext.AnswerSubmissions.AnyAsync(
+            submission =>
+                submission.ParticipantId == participant.Id &&
+                submission.SessionQuestionId == question.Id,
+            cancellationToken);
+
+        if (alreadySubmitted)
+        {
+            throw new ConflictException(
+                "The participant has already answered this question.");
+        }
+
+        var submission = new AnswerSubmission(
+            Guid.NewGuid(),
+            participant,
+            question,
+            request.SelectedOptionIds,
+            timeProvider.GetUtcNow());
+        var selectedOptionIds = submission.SelectedOptions
+            .Select(option => option.SessionAnswerOptionId)
+            .ToHashSet();
+        var correctOptionIds = question.AnswerOptions
+            .Where(option => option.IsCorrect)
+            .Select(option => option.Id)
+            .ToHashSet();
+        var isCorrect = selectedOptionIds.SetEquals(correctOptionIds);
+        var awardedPoints = isCorrect ? question.Points : 0;
+
+        submission.Grade(isCorrect, awardedPoints);
+        participant.AwardPoints(awardedPoints);
+        dbContext.AnswerSubmissions.Add(submission);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new ConflictException(
+                "The participant has already answered this question.");
+        }
+
+        return NoContent();
+    }
+
     [Authorize(Roles = ApplicationRoles.Organizer)]
     [HttpPost("{sessionId:guid}/start")]
     [ProducesResponseType<QuizSessionStateResponse>(StatusCodes.Status200OK)]
