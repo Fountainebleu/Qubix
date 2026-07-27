@@ -174,6 +174,20 @@ public sealed class Quiz : Entity
         UpdatedAtUtc = timestamp;
     }
 
+    public void RestoreToDraft(DateTimeOffset restoredAtUtc)
+    {
+        if (Status != QuizStatus.Archived)
+        {
+            throw new DomainException("Only an archived quiz can be restored to draft.");
+        }
+
+        var timestamp = Guard.Utc(restoredAtUtc, nameof(restoredAtUtc));
+        EnsureNotBeforeCreation(timestamp, nameof(restoredAtUtc));
+
+        Status = QuizStatus.Draft;
+        UpdatedAtUtc = timestamp;
+    }
+
     public void MarkContentUpdated(DateTimeOffset updatedAtUtc)
     {
         EnsureDraft();

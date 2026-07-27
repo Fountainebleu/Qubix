@@ -125,9 +125,64 @@
   font-size: 16px;
 }
 
+.waiting-quiz-info {
+  width: 100%;
+  margin-top: 30px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: #fff;
+  color: var(--text);
+  text-align: left;
+}
+
+.waiting-quiz-info h2 {
+  margin: 0 0 10px;
+  font-size: 24px;
+}
+
+.waiting-quiz-info > span {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eeeafe;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.waiting-quiz-info > p,
+.waiting-quiz-info > small,
+.waiting-quiz-info div p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.waiting-quiz-info > small {
+  display: block;
+  margin-top: 8px;
+}
+
+.waiting-quiz-info > div {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.waiting-quiz-info div strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.waiting-quiz-info div p {
+  white-space: pre-wrap;
+}
+
 .waiting-participants {
   width: 100%;
-  margin-top: 42px;
+  margin-top: 24px;
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: 20px;

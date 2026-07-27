@@ -125,6 +125,18 @@ public sealed class QuizSessionsApiTests(
         Assert.Matches("^[A-Z0-9]{6}$", roomCode);
         Assert.Equal("Waiting", created.GetProperty("status").GetString());
         Assert.Equal(
+            "Session quiz",
+            created.GetProperty("quizTitle").GetString());
+        Assert.Equal(
+            "Quiz for testing a session",
+            created.GetProperty("quizDescription").GetString());
+        Assert.Equal(
+            "Integration tests",
+            created.GetProperty("quizCategory").GetString());
+        Assert.Equal(
+            "Choose every correct answer.",
+            created.GetProperty("quizRules").GetString());
+        Assert.Equal(
             "Pending",
             created.GetProperty("questions")[0].GetProperty("status").GetString());
         Assert.Equal(JsonValueKind.Null, created.GetProperty("openQuestion").ValueKind);
@@ -476,7 +488,10 @@ public sealed class QuizSessionsApiTests(
             Guid.NewGuid(),
             ownerId,
             "Session quiz",
-            createdAt);
+            createdAt,
+            description: "Quiz for testing a session",
+            category: "Integration tests",
+            rules: "Choose every correct answer.");
         var question = new Question(
             Guid.NewGuid(),
             quiz.Id,

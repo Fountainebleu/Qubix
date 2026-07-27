@@ -93,6 +93,26 @@ public sealed class QuizTests
     }
 
     [Fact]
+    public void RestoreToDraft_ArchivedQuiz_AllowsFurtherModification()
+    {
+        var quiz = CreateQuiz();
+        quiz.Archive(DomainTestFactory.Now.AddMinutes(1));
+
+        quiz.RestoreToDraft(DomainTestFactory.Now.AddMinutes(2));
+        quiz.UpdateDetails(
+            "Restored quiz",
+            description: null,
+            category: null,
+            rules: null,
+            defaultQuestionTimeSeconds: 45,
+            updatedAtUtc: DomainTestFactory.Now.AddMinutes(3));
+
+        Assert.Equal(QuizStatus.Draft, quiz.Status);
+        Assert.Equal("Restored quiz", quiz.Title);
+        Assert.Equal(45, quiz.DefaultQuestionTimeSeconds);
+    }
+
+    [Fact]
     public void AddQuestion_RejectsDuplicatePosition()
     {
         var quiz = CreateQuiz();

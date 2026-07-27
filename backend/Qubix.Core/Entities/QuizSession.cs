@@ -31,6 +31,8 @@ public sealed class QuizSession : Entity
 
     public Guid QuizId { get; private set; }
 
+    public Quiz Quiz { get; private set; } = null!;
+
     public Guid OrganizerId { get; private set; }
 
     public string RoomCode { get; private set; } = string.Empty;
@@ -48,6 +50,26 @@ public sealed class QuizSession : Entity
     public IReadOnlyCollection<SessionQuestion> Questions => _questions.AsReadOnly();
 
     public IReadOnlyCollection<Participant> Participants => _participants.AsReadOnly();
+
+    public static QuizSession CreateForQuiz(
+        Guid id,
+        Quiz quiz,
+        Guid organizerId,
+        string roomCode,
+        DateTimeOffset createdAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(quiz);
+
+        return new QuizSession(
+            id,
+            quiz.Id,
+            organizerId,
+            roomCode,
+            createdAtUtc)
+        {
+            Quiz = quiz
+        };
+    }
 
     public void AddQuestion(SessionQuestion question)
     {

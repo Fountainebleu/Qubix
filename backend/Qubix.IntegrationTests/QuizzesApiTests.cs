@@ -71,6 +71,13 @@ public sealed class QuizzesApiTests(
         var updateArchivedResponse = await client.PutAsJsonAsync(
             $"/api/quizzes/{quizId}",
             CreateQuizRequest("Cannot update archived"));
+        var restoreResponse = await client.PostAsync(
+            $"/api/quizzes/{quizId}/restore",
+            content: null);
+        var restored = await ReadJsonAsync(restoreResponse);
+        var updateRestoredResponse = await client.PutAsJsonAsync(
+            $"/api/quizzes/{quizId}",
+            CreateQuizRequest("Restored title"));
 
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.Single(list.EnumerateArray());
@@ -84,6 +91,9 @@ public sealed class QuizzesApiTests(
         Assert.Equal(HttpStatusCode.OK, archiveResponse.StatusCode);
         Assert.Equal("Archived", archived.GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.Conflict, updateArchivedResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, restoreResponse.StatusCode);
+        Assert.Equal("Draft", restored.GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.OK, updateRestoredResponse.StatusCode);
     }
 
     [Fact]
@@ -102,10 +112,14 @@ public sealed class QuizzesApiTests(
         var archiveResponse = await otherClient.PostAsync(
             $"/api/quizzes/{quizId}/archive",
             content: null);
+        var restoreResponse = await otherClient.PostAsync(
+            $"/api/quizzes/{quizId}/restore",
+            content: null);
         var problem = await ReadJsonAsync(getResponse);
 
         Assert.Equal(HttpStatusCode.Forbidden, getResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, archiveResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, restoreResponse.StatusCode);
         Assert.Equal(
             "access_denied",
             problem.GetProperty("code").GetString());

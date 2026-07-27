@@ -83,6 +83,10 @@ export type OpenQuestion = {
 export type QuizSession = {
   id: string
   quizId: string
+  quizTitle: string
+  quizDescription: string | null
+  quizCategory: string | null
+  quizRules: string | null
   roomCode: string
   status: SessionStatus
   currentQuestionId: string | null
@@ -129,6 +133,9 @@ export const quizApi = {
 
   archive: (quizId: string) =>
     apiFetch<Quiz>(`/quizzes/${quizId}/archive`, { method: 'POST' }),
+
+  restore: (quizId: string) =>
+    apiFetch<Quiz>(`/quizzes/${quizId}/restore`, { method: 'POST' }),
 
   getQuestions: (quizId: string) =>
     apiFetch<QuizQuestion[]>(`/quizzes/${quizId}/questions`),

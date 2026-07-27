@@ -6,6 +6,10 @@ namespace Qubix.Api.Contracts.Sessions;
 public sealed record QuizSessionStateResponse(
     Guid Id,
     Guid QuizId,
+    string QuizTitle,
+    string? QuizDescription,
+    string? QuizCategory,
+    string? QuizRules,
     string RoomCode,
     string Status,
     Guid? CurrentQuestionId,
@@ -30,6 +34,10 @@ public sealed record QuizSessionStateResponse(
         return new QuizSessionStateResponse(
             session.Id,
             session.QuizId,
+            session.Quiz.Title,
+            session.Quiz.Description,
+            session.Quiz.Category,
+            session.Quiz.Rules,
             session.RoomCode,
             session.Status.ToString(),
             session.CurrentQuestionId,

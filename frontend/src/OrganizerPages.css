@@ -714,6 +714,46 @@
   margin-top: 8px;
 }
 
+.lobby-quiz-info {
+  min-height: auto;
+  margin-top: 24px;
+  display: grid;
+  gap: 10px;
+}
+
+.lobby-quiz-category {
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eeeafe;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lobby-quiz-info > p,
+.lobby-quiz-info > small,
+.lobby-quiz-rules p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.lobby-quiz-rules {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.lobby-quiz-rules strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.lobby-quiz-rules p {
+  white-space: pre-wrap;
+}
+
 .room-code {
   min-height: 232px;
   margin-top: 28px;

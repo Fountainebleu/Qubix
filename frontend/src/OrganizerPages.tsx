@@ -173,6 +173,22 @@ export function QuizListPage() {
     }
   }
 
+  const restoreQuiz = async (quizId: string) => {
+    setBusyId(quizId)
+    setError('')
+
+    try {
+      const updated = await quizApi.restore(quizId)
+      setQuizzes((items) =>
+        items.map((quiz) => (quiz.id === updated.id ? updated : quiz)),
+      )
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError))
+    } finally {
+      setBusyId('')
+    }
+  }
+
   const launchQuiz = async (quizId: string) => {
     setBusyId(quizId)
     setError('')
@@ -266,6 +282,15 @@ export function QuizListPage() {
                     disabled={busyId === quiz.id}
                   >
                     В архив
+                  </button>
+                )}
+                {quiz.status === 'Archived' && (
+                  <button
+                    className="text-button"
+                    onClick={() => restoreQuiz(quiz.id)}
+                    disabled={busyId === quiz.id}
+                  >
+                    Вернуть в черновик
                   </button>
                 )}
               </div>
@@ -574,12 +599,19 @@ export function QuizEditorPage() {
           ? 0
           : Math.max(...draft.answerOptions.map((option) => option.position)) +
             1
-      await quizApi.createAnswerOption(quizId, draft.id, {
+      const created = await quizApi.createAnswerOption(quizId, draft.id, {
         text: 'Новый вариант',
         isCorrect: false,
         position,
       })
-      await refreshQuestions(draft.id)
+      setDraft((current) =>
+        current?.id === draft.id
+          ? {
+              ...current,
+              answerOptions: [...current.answerOptions, created],
+            }
+          : current,
+      )
     })
   }
 
@@ -590,7 +622,16 @@ export function QuizEditorPage() {
 
     void runAction(async () => {
       await quizApi.deleteAnswerOption(quizId, draft.id, optionId)
-      await refreshQuestions(draft.id)
+      setDraft((current) =>
+        current?.id === draft.id
+          ? {
+              ...current,
+              answerOptions: current.answerOptions.filter(
+                (option) => option.id !== optionId,
+              ),
+            }
+          : current,
+      )
     })
   }
 
@@ -617,6 +658,13 @@ export function QuizEditorPage() {
       const archived = await quizApi.archive(quizId)
       setQuiz(archived)
       setNotice('Квиз перемещён в архив.')
+    })
+
+  const restore = () =>
+    runAction(async () => {
+      const restored = await quizApi.restore(quizId)
+      setQuiz(restored)
+      setNotice('Квиз возвращён в черновик и снова доступен для редактирования.')
     })
 
   const launch = () =>
@@ -721,6 +769,15 @@ export function QuizEditorPage() {
                 disabled={isBusy}
               >
                 В архив
+              </button>
+            )}
+            {quiz.status === 'Archived' && (
+              <button
+                className="button button--secondary"
+                onClick={restore}
+                disabled={isBusy}
+              >
+                Вернуть в черновик
               </button>
             )}
           </div>
@@ -960,7 +1017,6 @@ export function QuizEditorPage() {
 export function OrganizerSessionPage() {
   const { sessionId } = useParams()
   const [session, setSession] = useState<QuizSession | null>(null)
-  const [quiz, setQuiz] = useState<Quiz | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState('')
@@ -983,10 +1039,6 @@ export function OrganizerSessionPage() {
         }
 
         setSession(loadedSession)
-        const loadedQuiz = await quizApi.get(loadedSession.quizId)
-        if (isActive) {
-          setQuiz(loadedQuiz)
-        }
       } catch (requestError) {
         if (isActive) {
           setError(getApiErrorMessage(requestError))
@@ -1111,7 +1163,7 @@ export function OrganizerSessionPage() {
     return <div className="page-loader">Подготавливаем комнату…</div>
   }
 
-  if (!session || !quiz) {
+  if (!session) {
     return (
       <main className="app-page">
         <OrganizerHeader dark />
@@ -1136,12 +1188,31 @@ export function OrganizerSessionPage() {
                 ? 'Квиз идёт'
                 : 'Квиз завершён'}
           </span>
-          <h1>{quiz.title}</h1>
+          <h1>{session.quizTitle}</h1>
           <p>
             {session.status === 'Waiting'
               ? 'Участники подключаются по коду комнаты'
               : `${session.participants.length} участников`}
           </p>
+          {session.status === 'Waiting' && (
+            <div className="lobby-quiz-info panel">
+              {session.quizCategory && (
+                <span className="lobby-quiz-category">
+                  {session.quizCategory}
+                </span>
+              )}
+              <p>
+                {session.quizDescription || 'Описание квиза не указано.'}
+              </p>
+              <small>
+                Квиз содержит {session.questions.length} вопросов.
+              </small>
+              <div className="lobby-quiz-rules">
+                <strong>Правила проведения</strong>
+                <p>{session.quizRules || 'Дополнительные правила не указаны.'}</p>
+              </div>
+            </div>
+          )}
           <div className="room-code">
             <small>Код комнаты</small>
             <strong>{session.roomCode}</strong>

@@ -124,6 +124,16 @@ function WaitingScreen({ session }: { session: QuizSession }) {
         <span className="eyebrow">Вы в комнате {session.roomCode}</span>
         <h1>Ждём начала квиза</h1>
         <p>Организатор запустит игру, когда все участники подключатся.</p>
+        <div className="waiting-quiz-info">
+          <h2>{session.quizTitle}</h2>
+          {session.quizCategory && <span>{session.quizCategory}</span>}
+          <p>{session.quizDescription || 'Описание квиза не указано.'}</p>
+          <small>Квиз содержит {session.questions.length} вопросов.</small>
+          <div>
+            <strong>Правила проведения</strong>
+            <p>{session.quizRules || 'Дополнительные правила не указаны.'}</p>
+          </div>
+        </div>
         <div className="waiting-participants">
           <strong>{session.participants.length} подключено</strong>
           <div>

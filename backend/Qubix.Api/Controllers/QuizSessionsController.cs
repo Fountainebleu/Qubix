@@ -54,9 +54,9 @@ public sealed class QuizSessionsController(
         }
 
         var timestamp = timeProvider.GetUtcNow();
-        var session = new QuizSession(
+        var session = QuizSession.CreateForQuiz(
             Guid.NewGuid(),
-            quiz.Id,
+            quiz,
             User.GetRequiredUserId(),
             await GenerateRoomCodeAsync(cancellationToken),
             timestamp);
@@ -343,6 +343,7 @@ public sealed class QuizSessionsController(
     private IQueryable<QuizSession> SessionGraph()
     {
         return dbContext.QuizSessions
+            .Include(session => session.Quiz)
             .Include(session => session.Questions)
             .ThenInclude(question => question.AnswerOptions)
             .Include(session => session.Participants);

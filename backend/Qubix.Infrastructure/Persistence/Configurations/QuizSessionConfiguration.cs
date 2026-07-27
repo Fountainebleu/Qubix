@@ -57,7 +57,7 @@ internal sealed class QuizSessionConfiguration : IEntityTypeConfiguration<QuizSe
         builder.Property(session => session.CreatedAtUtc)
             .IsRequired();
 
-        builder.HasOne<Quiz>()
+        builder.HasOne(session => session.Quiz)
             .WithMany()
             .HasForeignKey(session => session.QuizId)
             .OnDelete(DeleteBehavior.Restrict);

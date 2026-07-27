@@ -145,6 +145,25 @@ public sealed class QuizzesController(
         return Ok(QuizResponse.FromEntity(quiz));
     }
 
+    [HttpPost("{id:guid}/restore")]
+    [ProducesResponseType<QuizResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<QuizResponse>> Restore(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var quiz = await FindQuizAsync(id, includeQuestions: false, cancellationToken);
+        User.EnsureOwner(quiz.OwnerId);
+
+        quiz.RestoreToDraft(timeProvider.GetUtcNow());
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(QuizResponse.FromEntity(quiz));
+    }
+
     private async Task<Quiz> FindQuizAsync(
         Guid id,
         bool includeQuestions,
